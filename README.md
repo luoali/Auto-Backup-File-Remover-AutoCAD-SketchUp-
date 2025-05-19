@@ -57,7 +57,7 @@ This script is designed for users who want to free up disk space by removing unn
 5.  **Scanning**: The script will then begin scanning your drives. You'll see progress bars for each drive, indicating the directory currently being scanned. This can take some time depending on your hard drive size and number of files.
 6.  **Review and Confirm (Default Mode)**: After scanning all drives, if eligible backup files are found, they will be listed in the terminal. The script will then ask for a single confirmation:
     ```
-    是否将以上 X 个文件全部移动到回收站？ (y/n):
+    Move all X listed file(s) to Recycle Bin? (y/n)
     ```
     Type `y` and press Enter to proceed, or `n` and press Enter to cancel.
 7.  **Completion**: After the operation (or cancellation), a summary message will be displayed.
