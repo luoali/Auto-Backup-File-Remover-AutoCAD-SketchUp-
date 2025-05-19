@@ -4,138 +4,138 @@ import datetime
 import subprocess
 import sys
 import importlib.util
-# tqdm 将用于进度条显示. 将在依赖检查后导入
+# tqdm will be used for progress bars. It will be imported after dependency check.
 
-# --- 配置路径和日志 ---
-# 获取桌面路径
+# --- Configure Paths and Logging ---
+# Get Desktop path
 desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
 
-# 确保桌面路径存在，如果不存在则尝试创建或回退
+# Ensure Desktop path exists, try to create it or fall back if it doesn't
 if not os.path.exists(desktop_path):
-    print(f"警告：桌面路径 {desktop_path} 不存在。")
+    print(f"Warning: Desktop path {desktop_path} does not exist.")
     try:
         os.makedirs(desktop_path, exist_ok=True)
-        print(f"已尝试创建桌面目录: {desktop_path}")
+        print(f"Attempted to create desktop directory: {desktop_path}")
     except OSError as e:
-        print(f"无法创建桌面目录 {desktop_path} ({e})。日志将保存在当前工作目录。")
-        desktop_path = os.getcwd() # 日志回退到当前工作目录
+        print(f"Could not create desktop directory {desktop_path} ({e}). Log will be saved in the current working directory.")
+        desktop_path = os.getcwd() # Fall back to current working directory for logs
 
 log_file_name = datetime.datetime.now().strftime("%Y%m%d_%H%M%S") + "_backup_file_remover.log"
 log_file_path = os.path.join(desktop_path, log_file_name)
 
-# 配置日志记录
-# filemode='w' 会在每次运行时覆盖日志文件，'a' 会追加。
+# Configure logging
+# filemode='w' overwrites the log file on each run, 'a' appends.
 logging.basicConfig(filename=log_file_path, level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s',
                     filemode='w')
 
-# --- 依赖检查与安装函数 ---
+# --- Dependency Check and Installation Function ---
 def check_and_install_packages(packages):
     """
-    检查指定的 Python 包是否已安装，如果未安装则尝试使用 pip 安装。
+    Checks if specified Python packages are installed and attempts to install them using pip if not.
     Args:
-        packages (list): 需要检查和安装的包名列表。
+        packages (list): A list of package names to check and install.
     Returns:
-        bool: 如果所有包都已安装或成功安装则返回 True，否则返回 False。
+        bool: True if all packages are installed or successfully installed, False otherwise.
     """
     all_successful = True
     for package in packages:
         spec = importlib.util.find_spec(package)
         if spec is None:
-            print(f"模块 {package} 未安装。正在尝试安装...")
-            logging.info(f"模块 {package} 未安装。正在尝试安装...")
+            print(f"Module {package} not installed. Attempting to install...")
+            logging.info(f"Module {package} not installed. Attempting to install...")
             try:
-                # 使用 sys.executable 确保为当前 Python 解释器调用 pip
+                # Use sys.executable to ensure pip is called for the current Python interpreter
                 process = subprocess.Popen(
                     [sys.executable, "-m", "pip", "install", package],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
-                    text=True, # 以文本模式处理输出
-                    errors='ignore' # 忽略解码错误
+                    text=True, # Process output as text
+                    errors='ignore' # Ignore decoding errors
                 )
                 stdout, stderr = process.communicate()
 
                 if process.returncode == 0:
-                    print(f"模块 {package} 已成功安装。")
-                    logging.info(f"模块 {package} 已成功安装。")
+                    print(f"Module {package} installed successfully.")
+                    logging.info(f"Module {package} installed successfully.")
                 else:
-                    error_message = f"安装模块 {package} 失败。返回码: {process.returncode}\nPip Stdout: {stdout}\nPip Stderr: {stderr}"
+                    error_message = f"Failed to install module {package}. Return code: {process.returncode}\nPip Stdout: {stdout}\nPip Stderr: {stderr}"
                     print(error_message)
                     logging.error(error_message)
                     all_successful = False
             except FileNotFoundError:
-                error_message = f"错误：找不到 pip 命令 (尝试通过 {sys.executable} -m pip 调用)。请确保 pip 已安装并为当前 Python 环境正确配置。"
+                error_message = f"Error: pip command not found (tried via {sys.executable} -m pip). Please ensure pip is installed and configured for your current Python environment."
                 print(error_message)
                 logging.error(error_message)
                 all_successful = False
             except Exception as e:
-                error_message = f"安装模块 {package} 时发生未知错误: {e}"
+                error_message = f"An unknown error occurred while installing module {package}: {e}"
                 print(error_message)
                 logging.error(error_message)
                 all_successful = False
         else:
-            # print(f"模块 {package} 已安装。") # 可以取消注释以在控制台显示此信息
-            logging.info(f"模块 {package} 已安装。")
+            # print(f"Module {package} is already installed.") # Can be uncommented to show this info
+            logging.info(f"Module {package} is already installed.")
     return all_successful
 
-# --- 主要脚本逻辑 ---
-# 将 tqdm 添加到必需的包列表中
+# --- Main Script Logic ---
+# Add tqdm to the list of required packages
 required_packages = ["psutil", "send2trash", "tqdm"]
-print("正在检查所需模块...")
+print("Checking required modules...")
 dependencies_ok = check_and_install_packages(required_packages)
 
 if not dependencies_ok:
-    message = "一个或多个必需的模块未能安装。脚本可能无法正常运行或将立即退出。"
+    message = "One or more required modules could not be installed. The script may not run correctly or will exit now."
     print(message)
     logging.critical(message)
-    sys.exit("依赖安装失败，程序退出。请检查日志获取详细信息，或尝试手动安装所需模块。")
+    sys.exit("Dependency installation failed. Exiting script. Please check the log for details or try installing required modules manually.")
 
-# 依赖检查通过后，再导入这些模块
+# After dependency check, import the modules
 try:
     import psutil
     import send2trash
-    from tqdm import tqdm # 在确认安装后再导入
+    from tqdm import tqdm # Import tqdm after ensuring it's installed
 except ImportError as e:
-    critical_message = f"即使在尝试安装后，导入必需模块时依然出错: {e}。\n请检查日志并确保模块已为 Python 环境 '{sys.executable}' 正确安装。\n脚本将退出。"
+    critical_message = f"Error importing required modules even after attempting installation: {e}.\nPlease check the log and ensure modules are correctly installed for Python environment '{sys.executable}'.\nScript will exit."
     print(critical_message)
     logging.critical(critical_message)
     sys.exit(critical_message)
 
 def delete_backup_files(confirm=True):
     """
-    自动查找 AutoCAD 和 SketchUp 备份文件。
-    如果 confirm=True，则在扫描后统一确认是否删除所有找到的文件。
-    如果 confirm=False，则自动删除所有找到的文件。
+    Automatically finds AutoCAD and SketchUp backup files.
+    If confirm=True, it will ask for a single confirmation after scanning to delete all found files.
+    If confirm=False, it will automatically delete all found files.
     """
     search_dirs = []
     try:
         for partition in psutil.disk_partitions():
-            # 仅包括可读写的物理驱动器，排除如CD-ROM等特殊设备
-            # 同时检查挂载点是否确实是一个目录
+            # Include only read-write physical drives, excluding special devices like CD-ROMs
+            # Also check if the mountpoint is indeed a directory
             if 'rw' in partition.opts.lower() and os.path.isdir(partition.mountpoint):
                 search_dirs.append(partition.mountpoint)
             else:
-                logging.info(f"跳过非可读写或非目录挂载点: {partition.mountpoint} (opts: {partition.opts})")
+                logging.info(f"Skipping non-read-write or non-directory mountpoint: {partition.mountpoint} (opts: {partition.opts})")
     except Exception as e:
-        print(f"获取磁盘分区信息失败: {e}")
-        logging.error(f"获取磁盘分区信息失败: {e}")
+        print(f"Failed to get disk partition information: {e}")
+        logging.error(f"Failed to get disk partition information: {e}")
         return 
     
     if not search_dirs:
-        print("未找到可扫描的磁盘驱动器。")
-        logging.warning("未找到可扫描的磁盘驱动器。脚本将退出。")
+        print("No scannable disk drives found.")
+        logging.warning("No scannable disk drives found. Script will exit.")
         return
 
-    # 定义要排除的目录的基础定义
+    # Define base directories for exclusion
     exclude_dirs_definitions = [
-        os.path.join(os.path.expanduser("~"), "AppData"), # 用户 AppData
+        os.path.join(os.path.expanduser("~"), "AppData"), # User AppData
     ]
-    # 对于系统级目录，如 Program Files, Windows，应该这样获取（以Windows为例）：
-    if os.name == 'nt': # 如果是Windows系统
+    # For system-level directories like Program Files, Windows, get them this way (Windows example):
+    if os.name == 'nt': # If Windows OS
         program_files = os.environ.get('ProgramFiles')
         program_files_x86 = os.environ.get('ProgramFiles(x86)')
         windows_dir = os.environ.get('WINDIR')
-        # 确保这些环境变量对应的路径实际存在且是目录
+        # Ensure these environment variable paths actually exist and are directories
         if program_files and os.path.isdir(program_files): 
             exclude_dirs_definitions.append(program_files)
         if program_files_x86 and os.path.isdir(program_files_x86): 
@@ -143,56 +143,56 @@ def delete_backup_files(confirm=True):
         if windows_dir and os.path.isdir(windows_dir): 
             exclude_dirs_definitions.append(windows_dir)
         
-        # 排除所有驱动器根目录下的回收站 ($Recycle.Bin)
+        # Exclude Recycle Bins ($Recycle.Bin) from the root of all scanned drives
         for part_path in search_dirs: 
              common_recycle_bin = os.path.join(part_path, '$Recycle.Bin') 
              if os.path.isdir(common_recycle_bin):
                  exclude_dirs_definitions.append(common_recycle_bin)
     
-    # 转换为规范化的绝对路径，并只保留实际存在的目录以提高效率
+    # Convert to normalized absolute paths and keep only existing directories for efficiency
     exclude_dirs = []
     for p_def in exclude_dirs_definitions:
-        if p_def and os.path.isdir(p_def): 
+        if p_def and os.path.isdir(p_def): # Re-confirm path is not None and is a directory
             exclude_dirs.append(os.path.normpath(os.path.abspath(p_def)))
-        elif p_def: 
-            logging.warning(f"定义的排除路径 '{p_def}' 不是一个有效目录，将被忽略。")
+        elif p_def: # p_def exists but is not a directory (e.g., user defined an invalid path or env var returned non-dir)
+            logging.warning(f"Defined exclusion path '{p_def}' is not a valid directory and will be ignored.")
             
     if exclude_dirs:
-        logging.info(f"将排除以下已确认存在的目录及其子目录: {exclude_dirs}")
+        logging.info(f"The following confirmed existing directories and their subdirectories will be excluded: {exclude_dirs}")
     else:
-        logging.info("没有配置或找到有效的排除目录。")
+        logging.info("No valid exclusion directories configured or found.")
 
-    files_to_delete_candidates = [] # 存储待删除文件列表
+    files_to_delete_candidates = [] # List to store files pending deletion
 
-    print("\n开始扫描备份文件，请稍候...") # 总的开始信息
+    print("\nStarting scan for backup files, please wait...") # Overall start message
     for search_dir in search_dirs:
-        # 为每个驱动器打印清晰的开始信息
-        print(f"\n===== 开始扫描驱动器: {search_dir} =====")
-        logging.info(f"开始扫描驱动器: {search_dir}")
+        # Print clear start message for each drive
+        print(f"\n===== Starting scan of drive: {search_dir} =====")
+        logging.info(f"Starting scan of drive: {search_dir}")
 
-        walk_iterator = os.walk(search_dir, topdown=True, onerror=lambda err: logging.warning(f"无法访问目录中的项 '{err.filename}': {err.strerror}"))
+        walk_iterator = os.walk(search_dir, topdown=True, onerror=lambda err: logging.warning(f"Cannot access item in directory '{err.filename}': {err.strerror}"))
         
-        drive_label = search_dir.replace('\\','').replace(':','') # 尝试获取驱动器字母，例如 C, D
-        if not drive_label: drive_label = os.path.basename(search_dir.rstrip(os.sep)) # 回退到路径最后一部分
-        if not drive_label: drive_label = search_dir # 最坏情况
+        drive_label = search_dir.replace('\\','').replace(':','') # Try to get drive letter, e.g., C, D
+        if not drive_label: drive_label = os.path.basename(search_dir.rstrip(os.sep)) # Fallback to last part of path
+        if not drive_label: drive_label = search_dir # Worst case
 
-        with tqdm(walk_iterator, desc=f"扫描 {drive_label}", unit=" 个目录", leave=False, dynamic_ncols=True, ascii=True) as pbar:
+        with tqdm(walk_iterator, desc=f"Scanning {drive_label}", unit=" dirs", leave=False, dynamic_ncols=True, ascii=True) as pbar:
             for dirpath, dirnames, filenames in pbar:
                 display_path = dirpath
-                if len(display_path) > 60: 
+                if len(display_path) > 60: # Shorten long paths for display
                     display_path = "..." + display_path[-57:]
-                pbar.set_postfix_str(f"当前: {display_path}", refresh=True)
+                pbar.set_postfix_str(f"Current: {display_path}", refresh=True)
 
                 current_normalized_dirpath = os.path.normpath(os.path.abspath(dirpath))
                 is_excluded = False
-                if exclude_dirs: 
+                if exclude_dirs: # Only check if there are exclusion rules
                     for excluded_path in exclude_dirs:
                         if current_normalized_dirpath.startswith(excluded_path):
                             is_excluded = True
-                            break 
+                            break # Found a matching exclusion rule, no need to check others
                 if is_excluded:
-                    dirnames[:] = []  
-                    continue          
+                    dirnames[:] = []  # Clear subdirectories list, stop os.walk from going deeper here
+                    continue          # Skip current excluded directory, continue to next item in os.walk
 
                 for filename in filenames:
                     if filename.endswith((".bak", ".skb")):
@@ -201,78 +201,83 @@ def delete_backup_files(confirm=True):
                         original_file = ""
                         if ext == ".bak": original_file = base_name + ".dwg"
                         elif ext == ".skb": original_file = base_name + ".skp"
-                        else: continue 
+                        else: 
+                            # This case should ideally not happen due to endswith filter above
+                            logging.warning(f"Found unknown backup file extension '{ext}' for file: {backup_file}")
+                            continue 
 
                         if os.path.exists(original_file):
-                            logging.info(f"候选删除: 找到备份文件 '{backup_file}' (原始文件 '{original_file}' 存在)。")
+                            logging.info(f"Candidate for deletion: Found backup file '{backup_file}' (original file '{original_file}' exists).")
                             files_to_delete_candidates.append(backup_file)
     
-    sys.stderr.write("\n") # 确保 tqdm 清理后换行，为后续打印做准备
-    print("所有驱动器扫描完毕。")
+    sys.stderr.write("\n") # Ensure newline after tqdm for clean subsequent printing
+    print("Scanning of all drives completed.")
     
+    # --- Scan complete, process uniformly ---
     if not files_to_delete_candidates:
-        print("未找到符合条件的备份文件。")
-        logging.info("扫描完毕。未找到符合条件的备份文件。")
+        print("No eligible backup files found.")
+        logging.info("Scan complete. No eligible backup files found.")
         return
 
-    print(f"\n共找到 {len(files_to_delete_candidates)} 个符合条件的备份文件:")
+    print(f"\nFound {len(files_to_delete_candidates)} eligible backup file(s):")
     for i, f_path in enumerate(files_to_delete_candidates, 1):
         print(f"  {i}. {f_path}")
     
     proceed_with_deletion = False
     if confirm:
         try:
-            user_response = input(f"\n是否将以上 {len(files_to_delete_candidates)} 个文件全部移动到回收站？ (y/n): ").strip().lower()
+            user_response = input(f"\nMove all {len(files_to_delete_candidates)} listed file(s) to Recycle Bin? (y/n): ").strip().lower()
             if user_response == 'y':
                 proceed_with_deletion = True
             else:
-                print("操作已取消，未移动任何文件。")
-                logging.info(f"用户选择不移动 {len(files_to_delete_candidates)} 个候选文件。")
-        except KeyboardInterrupt: 
-            print("\n操作被用户中断（Ctrl+C）。未移动任何文件。")
-            logging.warning("操作被用户通过 KeyboardInterrupt 中断。")
+                print("Operation cancelled by user. No files were moved.")
+                logging.info(f"User chose not to move {len(files_to_delete_candidates)} candidate file(s).")
+        except KeyboardInterrupt: # User pressed Ctrl+C
+            print("\nOperation interrupted by user (Ctrl+C). No files were moved.")
+            logging.warning("Operation interrupted by user via KeyboardInterrupt.")
             return 
-        except EOFError: 
-            print("\n输入已结束，操作取消。未移动任何文件。")
-            logging.warning("用户结束了输入流 (EOFError)，操作取消。")
+        except EOFError: # User might have sent EOF via Ctrl+Z (Windows) or Ctrl+D (Unix)
+            print("\nInput stream ended, operation cancelled. No files were moved.")
+            logging.warning("User ended input stream (EOFError), operation cancelled.")
             return
-    else: 
-        print("\nconfirm=False，将自动移动所有找到的文件到回收站。")
-        logging.info(f"confirm=False，自动处理 {len(files_to_delete_candidates)} 个候选文件。")
+    else: # confirm is False
+        print("\nconfirm=False, will automatically move all found files to Recycle Bin.")
+        logging.info(f"confirm=False, automatically processing {len(files_to_delete_candidates)} candidate file(s).")
         proceed_with_deletion = True
 
     if proceed_with_deletion:
         deleted_count = 0
         failed_count = 0
-        print("\n正在移动文件到回收站...")
-        with tqdm(files_to_delete_candidates, desc="移动文件", unit=" 个文件", dynamic_ncols=True, ascii=True) as delete_pbar:
+        print("\nMoving files to Recycle Bin...")
+        # Also add a progress bar for the deletion process
+        with tqdm(files_to_delete_candidates, desc="Moving files", unit=" file(s)", dynamic_ncols=True, ascii=True) as delete_pbar:
             for backup_file_to_delete in delete_pbar:
                 delete_pbar.set_postfix_str(os.path.basename(backup_file_to_delete), refresh=True)
                 try:
                     send2trash.send2trash(backup_file_to_delete)
-                    logging.info(f"已移动到回收站: {backup_file_to_delete}")
+                    logging.info(f"Moved to Recycle Bin: {backup_file_to_delete}")
                     deleted_count += 1
-                except Exception as e: 
-                    # 在 tqdm 进度条下方清晰打印错误
-                    sys.stderr.write(f"\n  移动文件 '{backup_file_to_delete}' 失败: {e}\n")
-                    logging.error(f"移动文件 '{backup_file_to_delete}' 到回收站失败: {e}")
+                except Exception as e: # send2trash might raise various exceptions, e.g., send2trash.TrashPermissionError
+                    # Print errors clearly below the tqdm progress bar
+                    sys.stderr.write(f"\n  Failed to move file '{backup_file_to_delete}': {e}\n")
+                    logging.error(f"Failed to move file '{backup_file_to_delete}' to Recycle Bin: {e}")
                     failed_count += 1
         
-        summary_message = f"操作完成。成功移动 {deleted_count} 个文件，失败 {failed_count} 个文件。"
+        summary_message = f"Operation complete. Successfully moved {deleted_count} file(s), failed to move {failed_count} file(s)."
         print(f"\n{summary_message}")
         logging.info(summary_message)
 
-# --- 脚本入口点 ---
+# --- Script Entry Point ---
 if __name__ == "__main__":
-    # 确保脚本在被直接运行时，所有打印信息都能在控制台看到
-    # （虽然 tqdm 默认打到 stderr，但普通 print 打到 stdout，通常没问题）
+    # Ensure all print messages are visible in the console when run directly
+    # (tqdm prints to stderr by default, normal print to stdout, usually fine)
     try:
-        print("开始执行备份文件清理脚本...")
-        logging.info("脚本开始执行。")
-        delete_backup_files(confirm=True)
-        print(f"\n脚本执行完毕。日志文件已保存到: {log_file_path}")
-        logging.info("脚本执行完毕。")
+        print("Starting Backup File Remover script...")
+        logging.info("Script execution started.")
+        delete_backup_files(confirm=True) # Default is to confirm once after scan
+        print(f"\nScript execution finished. Log file saved to: {log_file_path}")
+        logging.info("Script execution finished.")
     except Exception as e:
-        # 捕获顶层未知错误，记录并打印
-        print(f"脚本执行过程中发生意外错误: {e}")
-        logging.critical(f"脚本执行过程中发生意外错误: {e}", exc_info=True)
+        # Catch any unexpected top-level errors, log and print
+        print(f"An unexpected error occurred during script execution: {e}")
+        logging.critical(f"An unexpected error occurred during script execution: {e}", exc_info=True)
